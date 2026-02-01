@@ -4,14 +4,21 @@ import {useEffect, useState} from "react";
 import {usePuterStore} from "~/lib/puter";
 
 const ResumeCard = ({ resume: { id, companyName, jobTitle, feedback, imagePath } }: { resume: Resume }) => {
-    const { fs } = usePuterStore();
+    const { fs, getCachedBlobUrl, cacheBlobUrl } = usePuterStore();
     const [resumeUrl, setResumeUrl] = useState('');
 
     useEffect(() => {
         const loadResume = async () => {
+            const cachedUrl = getCachedBlobUrl(imagePath);
+            if (cachedUrl) {
+                setResumeUrl(cachedUrl);
+                return;
+            }
+
             const blob = await fs.read(imagePath);
             if(!blob) return;
-            let url = URL.createObjectURL(blob);
+            
+            const url = cacheBlobUrl(imagePath, blob);
             setResumeUrl(url);
         }
 

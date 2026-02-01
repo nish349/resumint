@@ -94,6 +94,9 @@ interface PuterStore {
 
     init: () => void;
     clearError: () => void;
+    blobCache: Record<string, string>;
+    getCachedBlobUrl: (path: string) => string | null;
+    cacheBlobUrl: (path: string, blob: Blob) => string;
 }
 
 const getPuter = (): typeof window.puter | null =>
@@ -411,10 +414,24 @@ export const usePuterStore = create<PuterStore>((set, get) => {
         return puter.kv.flush();
     };
 
+    const cacheBlobUrl = (path: string, blob: Blob) => {
+        const url = URL.createObjectURL(blob);
+        set((state) => ({
+            blobCache: { ...state.blobCache, [path]: url },
+        }));
+        return url;
+    };
+
+    const getCachedBlobUrl = (path: string) => {
+        const { blobCache } = get();
+        return blobCache[path] || null;
+    };
+
     return {
         isLoading: true,
         error: null,
         puterReady: false,
+        blobCache: {},
         auth: {
             user: null,
             isAuthenticated: false,
@@ -452,5 +469,7 @@ export const usePuterStore = create<PuterStore>((set, get) => {
         },
         init,
         clearError: () => set({ error: null }),
+        getCachedBlobUrl,
+        cacheBlobUrl
     };
 });

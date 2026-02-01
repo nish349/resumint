@@ -13,7 +13,7 @@ export const meta = () => [
 ];
 
 const Resume = () => {
-  const { auth, isLoading, fs, kv } = usePuterStore();
+  const { auth, isLoading, fs, kv, getCachedBlobUrl, cacheBlobUrl } = usePuterStore();
   const { id } = useParams();
   const [imageUrl, setImageUrl] = useState('');
   const [resumeUrl, setResumeUrl] = useState('');
@@ -32,21 +32,36 @@ const Resume = () => {
 
       const data = JSON.parse(resume);
 
-      const resumeBlob = await fs.read(data.resumePath);
-      if (!resumeBlob) return;
+      // Handle PDF Caching
+      let cachedResumeUrl = getCachedBlobUrl(data.resumePath);
+      if (cachedResumeUrl) {
+          setResumeUrl(cachedResumeUrl);
+      } else {
+          const resumeBlob = await fs.read(data.resumePath);
+          if (resumeBlob) {
+              const pdfBlob = new Blob([resumeBlob], { type: 'application/pdf' });
+              cachedResumeUrl = cacheBlobUrl(data.resumePath, pdfBlob);
+              setResumeUrl(cachedResumeUrl);
+          }
+      }
 
-      const pdfBlob = new Blob([resumeBlob], { type: 'application/pdf' });
-      const resumeUrl = URL.createObjectURL(pdfBlob);
-      setResumeUrl(resumeUrl);
-
-      const imageBlob = await fs.read(data.imagePath);
-      if (!imageBlob) return;
-      const imageUrl = URL.createObjectURL(imageBlob);
-      setImageUrl(imageUrl);
+      // Handle Image Caching
+      let cachedImageUrl = getCachedBlobUrl(data.imagePath);
+      if (cachedImageUrl) {
+          setImageUrl(cachedImageUrl);
+      } else {
+          const imageBlob = await fs.read(data.imagePath);
+          if (imageBlob) {
+             const url = cacheBlobUrl(data.imagePath, imageBlob);
+             setImageUrl(url);
+          }
+      }
 
       setFeedback(data.feedback);
-      console.log({ resumeUrl, imageUrl, feedback: data.feedback });
+      console.log({ resumeUrl: cachedResumeUrl, imageUrl: cachedImageUrl, feedback: data.feedback });
     };
+
+
 
     loadResume();
   }, [id]);

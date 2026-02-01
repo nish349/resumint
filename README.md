@@ -17,36 +17,87 @@
 5. 🔗 [Assets](#links)
 
 ## <a name="introduction">✨ Introduction</a>
+**ResuMint** is an AI-powered resume analysis application designed to help job seekers improve their resumes. It uses advanced Large Language Models (LLMs) to scan uploaded resumes, score them against job descriptions, and provide actionable feedback on tone, content, structure, and ATS (Applicant Tracking System) compatibility.
 
-**ResuMint** is more than just a resume storage tool—it's your personal career assistant. In today's competitive job market, getting your resume past Applicant Tracking Systems (ATS) and into the hands of recruiters is the first major hurdle. ResuMint helps you:
+The application is built as a **Single Page Application (SPA)** that runs entirely in the browser, leveraging the **Puter.js** cloud platform for backend services (Auth, Storage, Database, AI).
 
-*   **Analyze**: detailed breakdown of your resume's strengths and weaknesses.
-*   **Optimize**: Get AI-driven suggestions to improve keywords, formatting, and impact.
-*   **Track**: Keep all your resume versions in one secure, accessible place.
+## <a name="tech-stack">⚙️ Technology Stack</a>
 
-Built with a privacy-first approach using **Puter.js**, your data remains in your control.
+### Frontend Frameworks & Libraries
+-   **Core Framework:** [React Router v7](https://reactrouter.com/) (formerly Remix/React Router integration) - Handles routing and data loading.
+-   **UI Library:** [React v19](https://react.dev/) - Component-based UI architecture.
+-   **State Management:** [Zustand](https://github.com/pmndrs/zustand) - Lightweight global state management (used for Auth, Filesystem, and Caching).
+-   **Styling:** [TailwindCSS v4](https://tailwindcss.com/) - Utility-first CSS framework for styling.
+-   **Build Tool:** [Vite](https://vitejs.dev/) - High-performance frontend tooling.
 
-## <a name="tech-stack">⚙️ Tech Stack</a>
+### AI & Backend (Puter.js Integration)
+The application does not use a traditional server (Node.js/Python). Instead, it relies on **[Puter.js](https://docs.puter.com/)**, a browser-based cloud OS SDK.
+-   **Authentication:** `puter.auth` handles user sign-in/sign-out logic.
+-   **File System:** `puter.fs` stores uploaded PDF resumes and converted resume images.
+-   **Database:** `puter.kv` (Key-Value Store) acts as the database, storing JSON objects containing resume metadata, feedback, and file paths, indexed by a unique UUID.
+-   **AI Model:** The application uses **Claude 3.7 Sonnet** (via `puter.ai.chat`) for analyzing resume content.
 
-- **[React](https://react.dev/)** - Frontend library for building dynamic user interfaces.
-- **[React Router v7](https://reactrouter.com/)** - Handling routing with modern data loading capabilities.
-- **[Puter.js](https://docs.puter.com/)** - Serverless backend for Authentication, KV Storage, and AI capabilities directly in the browser.
-- **[Tailwind CSS](https://tailwindcss.com/)** - Utility-first CSS framework for rapid UI development.
-- **[Vite](https://vite.dev/)** - Next Generation Frontend Tooling.
-- **[Zustand](https://github.com/pmndrs/zustand)** - Small, fast and scalable bearbones state-management solution.
-- **[TypeScript](https://www.typescriptlang.org/)** - For type-safe code and better developer experience.
+### Critical Dependencies
+-   **pdfjs-dist:** Used to render PDFs and convert them to images for preview.
+-   **react-dropzone:** Handles file drag-and-drop interactions.
+-   **tw-animate-css:** Provides animation utilities for UI transitions.
 
-## <a name="features">🔋 Features</a>
+## 🧱 Core Architecture & Workflow
 
-👉 **AI-Powered Analysis**: Get instant feedback on your resume with an ATS score and improvement suggestions.
+### A. Authentication Flow
+1.  Users visit the app.
+2.  `usePuterStore` checks `puter.auth.isSignedIn()`.
+3.  If not signed in, they are redirected to `/auth`.
+4.  Once authenticated, the user object is stored in the global Zustand store.
 
-👉 **Seamless Authentication**: No complex signup forms. Log in securely using your Puter account.
+### B. The "Upload & Analyze" Workflow
+1.  **Input:** User fills out Company Name, Job Title, Job Description, and uploads a PDF Resume.
+2.  **File Processing:**
+    -   The PDF acts as the source of truth.
+    -   `pdfjs-dist` converts the first page of the PDF into an image (Blob).
+3.  **Storage (Puter FS):**
+    -   The PDF is uploaded to the user's Puter cloud storage.
+    -   The generated image is also uploaded to Puter cloud storage.
+4.  **AI Analysis:**
+    -   The app constructs a prompt containing the Job Title, Description, and the Resume file.
+    -   It calls `puter.ai.chat` (Claude 3.7 Sonnet).
+    -   **Prompt Goal:** Generate a JSON response with scores (0-100) and specific tips for Content, Tone, Structure, and ATS compatibility.
+5.  **Database Entry (Puter KV):**
+    -   A new record is created in the Key-Value store: `resume:{uuid}`.
+    -   Content: `{ id, companyName, jobTitle, resumePath, imagePath, feedback }`.
 
-👉 **Smart Storage**: Save detailed JSON-parsed versions of your resumes for easy editing and retrieval.
+### C. The "Review" Workflow (Dashboard)
+1.  **Home Page:** Fetches all keys matching `resume:*` from `puter.kv`.
+2.  **Display:** Renders a grid of `ResumeCard` components.
+    -   **Optimization:** Uses a recently implemented **Client-Side Cache** to store object URLs for resume images, preventing redundant network requests and memory leaks.
+3.  **Detail View:** Clicking a card navigates to `/resume/{id}`.
+    -   Displays the Resume Preview (Left).
+    -   Displays the AI Feedback Analysis (Right).
 
-👉 **Modern & Responsive UI**: A clean, distraction-free interface that works perfectly on desktop and mobile.
+## <a name="features">🔋 Key Features</a>
 
-👉 **Interactive Backgrounds**: Enjoy a visually pleasing experience with dynamic, animated backgrounds.
+### 📊 Smart Scoring System
+-   **Overall Score:** A weighted average of sub-category scores.
+-   **Category Breakdown:**
+    -   **Tone & Style:** Evaluates professional voice and clarity.
+    -   **Content:** Checks for relevance to the job description.
+    -   **Structure:** Analyzes formatting and readability.
+    -   **Skills:** Verifies if required skills from the job description are present.
+
+### 🤖 ATS Compatibility Check
+-   Simulates an ATS scan to see if the resume parses correctly.
+-   Provides warnings (Red/Yellow) and Success messages (Green) based on keywords and formatting.
+
+### � Detailed Feedback
+-   **Accordion UI:** Users can expand each category (Content, Structure, etc.).
+-   **Actionable Tips:** specific advice on what to "Fix" (Warnings) and what "Looks Good" (Checks).
+
+### 🚀 Performance Optimizations
+-   **Blob Caching:** Images and PDF blobs are cached in memory after the first load to ensure instant navigation between the list and detail views.
+-   **Lazy Loading:** Resumes are fetched only when needed (though the list metadata is fetched upfront).
+
+## Summary of Data Flow
+`User Input` -> `Puter FS (File Storage)` -> `Puter AI (Analysis)` -> `Puter KV (Metadata Store)` -> `UI Display`
 
 ## <a name="quick-start">🤸 Quick Start</a>
 
